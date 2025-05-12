@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>ETL Report</title></head>
+<body>
+  <h1>ETL Report</h1>
+  <form method="post">
+    <label>Min ID:</label>
+    <input type="number" name="min_id" value="{{min_id or ''}}" />
+    <button type="submit">Run</button>
+  </form>
+  {% for table in tables %}{{table|safe}}{% endfor %}
+</body>
+</html>

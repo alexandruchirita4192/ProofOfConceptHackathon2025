@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  etl:
+    image: ${REGISTRY}/poc-etl:latest
+    environment:
+      - DB_CONN=...
+  airflow:
+    image: ${REGISTRY}/poc-airflow:latest
+    ports:
+      - '8080:8080'
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+  streamlit:
+    image: ${REGISTRY}/poc-streamlit:latest
+    ports:
+      - '8501:8501'
+  flask:
+    image: ${REGISTRY}/poc-flask:latest
+    ports:
+      - '5000:5000'

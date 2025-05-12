@@ -1,0 +1,10 @@
+pandas
+sqlalchemy
+pyodbc
+jinja2
+weasyprint
+scikit-learn
+joblib
+streamlit  # only in streamlit_ui
+flask      # only in flask_app
+apache-airflow  # only in airflow_dag

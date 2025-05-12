@@ -1,0 +1,30 @@
+[
+    {
+        "title": "ETL Throughput",
+        "panels": [
+            {
+                "type": "graph",
+                "title": "Rows Processed",
+                "targets": [
+                    {
+                        "rawSql": "SELECT Timestamp, COUNT(*) AS rows_processed FROM etl_table GROUP BY Timestamp"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "title": "Health Metrics",
+        "panels": [
+            {
+                "type": "graph",
+                "title": "CPU Usage",
+                "targets": [
+                    {
+                        "rawSql": "SELECT Timestamp, CPU FROM HealthMetrics"
+                    }
+                ]
+            }
+        ]
+    }
+]
