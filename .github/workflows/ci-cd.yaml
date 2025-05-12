@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [main]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Lint code
+        run: flake8 .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run tests
+        run: pytest
+
+  build_and_push_etl:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build ETL Docker image
+        run: |
+          docker build -t ${{ secrets.REGISTRY }}/poc-etl:latest python_etl
+      - name: Push ETL image
+        run: |
+          echo ${{ secrets.REGISTRY_TOKEN }} | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/poc-etl:latest
+
+  build_and_push_airflow:
+    runs-on: ubuntu-latest
+    needs: build_and_push_etl
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Airflow Docker image
+        run: |
+          docker build -t ${{ secrets.REGISTRY }}/poc-airflow:latest airflow_dag
+      - name: Push Airflow image
+        run: |
+          echo ${{ secrets.REGISTRY_TOKEN }} | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/poc-airflow:latest
+
+  build_and_push_streamlit:
+    runs-on: ubuntu-latest
+    needs: build_and_push_airflow
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Streamlit Docker image
+        run: |
+          docker build -t ${{ secrets.REGISTRY }}/poc-streamlit:latest streamlit_ui
+      - name: Push Streamlit image
+        run: |
+          echo ${{ secrets.REGISTRY_TOKEN }} | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/poc-streamlit:latest
+
+  build_and_push_flask:
+    runs-on: ubuntu-latest
+    needs: build_and_push_streamlit
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Flask Docker image
+        run: |
+          docker build -t ${{ secrets.REGISTRY }}/poc-flask:latest flask_app
+      - name: Push Flask image
+        run: |
+          echo ${{ secrets.REGISTRY_TOKEN }} | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/poc-flask:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build_and_push_etl, build_and_push_airflow, build_and_push_streamlit, build_and_push_flask]
+    steps:
+      - name: Deploy services via SSH
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.REGISTRY }}/poc-etl:latest
+            docker pull ${{ secrets.REGISTRY }}/poc-airflow:latest
+            docker pull ${{ secrets.REGISTRY }}/poc-streamlit:latest
+            docker pull ${{ secrets.REGISTRY }}/poc-flask:latest
+            docker-compose -f /opt/poc/docker-compose.yml up -d
